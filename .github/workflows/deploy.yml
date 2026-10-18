@@ -24,6 +24,8 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # La misma versión con la que se probó el proyecto (ver README).
+          flutter-version: 3.38.5
           cache: true
 
       - name: Configurar Pages
@@ -36,8 +38,11 @@ jobs:
       - name: Descargar dependencias
         run: flutter pub get
 
+      - name: Pruebas
+        run: flutter test
+
       - name: Compilar la versión web
-        run: flutter build web --release --base-href "${{ steps.pages.outputs.base_path }}/"
+        run: flutter build web --release --pwa-strategy=none --base-href "${{ steps.pages.outputs.base_path }}/"
 
       - name: Subir el sitio
         uses: actions/upload-pages-artifact@v5
