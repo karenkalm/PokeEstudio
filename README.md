@@ -37,20 +37,24 @@ funciones.
   descripción en español con selector de versión; habilidades con su efecto;
   formas alternativas; estadísticas animadas; debilidades ×4 a ×0.
 * **Ajustes**: nombre de entrenador, pixel art o ilustración en tarjetas,
-  reducir movimiento, vaciar caché, borrar historial y licencias.
+  reducir movimiento, sonidos y volumen, vaciar caché, borrar historial y
+  licencias.
+* **Sonidos retro** originales al cambiar de sección, abrir fichas, usar las
+  flechas, activar filtros y guardar (se apagan o ajustan en *Ajustes*).
+* **Se adapta a cualquier pantalla**: celular, tablet y computadora. Desde
+  840 px de ancho la barra inferior pasa a ser un riel lateral; el contenido
+  se centra con un ancho máximo y la ficha se muestra en dos columnas. Con
+  mouse se pueden arrastrar los carruseles, y en la ficha ← → cambian de
+  especie y Esc la cierra.
 * Funciona sin conexión para buscar y filtrar; las fichas ya vistas se leen
   de la caché.
 
 ## Requisitos
 
-* **Flutter 3.47 o superior** (incluye Dart 3.13). Compruébalo con
-  `flutter --version`; si es anterior, ejecuta `flutter upgrade`.
-* Android Studio (SDK de Android) o Xcode para iOS.
-
-¿Por qué 3.47? Desde esa versión Material vive en el paquete oficial
-`material_ui`, y `go_router` 18 y `cached_network_image` 4 ya dependen de él.
-Mezclarlo con el antiguo `package:flutter/material.dart` crearía dos temas
-distintos, así que toda la app usa `material_ui`.
+* **Flutter 3.38 o superior** (incluye Dart 3.10). Compruébalo con
+  `flutter --version`.
+* Android Studio (SDK de Android) o Xcode para iOS. Para la versión web basta
+  con Chrome o Edge.
 
 ## Instalación
 
@@ -85,6 +89,23 @@ la APK final pueda llamar a PokéAPI, abre
 Opcional: en esa misma etiqueta `<application>` cambia
 `android:label="pokestudio"` por `android:label="PokéStudio"`.
 
+## Probar la versión web en tu computadora (Windows)
+
+Haz doble clic en **`PokeStudio-dev.bat`**. La ventana prepara el proyecto,
+compila la versión web y la sirve en <http://localhost:8642> (o en el siguiente
+puerto libre, que la ventana indica). La primera vez
+tarda unos minutos; déjala abierta mientras pruebas. El servidor
+(`tool/dev_server.dart`) también acepta, solo desde tu propio equipo,
+órdenes para recompilar, analizar y ejecutar las pruebas.
+
+## Publicar en GitHub Pages
+
+El flujo `.github/workflows/deploy.yml` compila la versión web y la publica
+cada vez que se sube algo a `main`. En el repositorio, *Settings → Pages →
+Source* debe estar en **GitHub Actions**. La carpeta `web/` incluye el ícono,
+el título y la pantalla de carga de PokéStudio (los íconos se generan con
+`python tool/generate_web_icons.py`).
+
 ## Compilar
 
 ```bash
@@ -93,23 +114,16 @@ flutter build appbundle --release    # para Google Play
 flutter build ios --release          # requiere macOS y Xcode
 ```
 
-## Verificación de esta entrega
+## Verificación
 
-El entorno donde se escribió el código no tenía acceso al SDK de Flutter ni a
-pub.dev, así que **todavía no se ha ejecutado `flutter analyze` ni
-`flutter test`**. Para compensarlo se verificó:
+Además de `flutter analyze` y `flutter test`, el código se revisó contra el
+código fuente real de Flutter 3.38, Riverpod 3.3, go_router 17,
+`cached_network_image` 3.4 y `audioplayers` 6.7 (constructores, argumentos con
+nombre, `const`, imports), y contra respuestas reales de PokéAPI.
 
-* Versiones de cada paquete contra sus etiquetas publicadas y sus `pubspec`.
-* Sintaxis Dart de los 67 archivos con un analizador gramatical.
-* Los 950 constructores con argumentos con nombre, contra el código fuente
-  real de Flutter 3.47.7, `material_ui` 1.7.0, Riverpod 3.4.3, go_router
-  18.1.0 y el resto de dependencias.
-* Iconos, enums y constantes usados, `const` válidos e imports suficientes.
-* Formato real de las respuestas de PokéAPI (copia oficial `api-data`) y
-  la tabla de tipos generada desde esos datos.
-
-El primer `flutter analyze` en tu equipo es la prueba definitiva: si aparece
-cualquier error, compártelo y se corrige antes de la Fase 3.
+En la web las imágenes se cargan con `Image.network` de Flutter: la versión
+web de `cached_network_image` perdía las texturas al cambiar de pestaña y
+dejaba cuadros negros.
 
 ## Pruebas incluidas
 
@@ -120,7 +134,7 @@ cualquier error, compártelo y se corrige antes de la Fase 3.
 | `test/models_test.dart` | Modelos con JSON real de PokéAPI, textos en español y su ausencia |
 | `test/api_client_test.dart` | Caché, deduplicación, reintentos, 404, sin conexión, UTF-8, caché en disco |
 | `test/preferences_test.dart` | Persistencia de ajustes e historial, destacados deterministas |
-| `test/widget_test.dart` | Navegación de las 5 pestañas, búsqueda, ficha completa con datos reales |
+| `test/widget_test.dart` | Navegación de las 5 pestañas, riel lateral en computadora, tablet sin desbordes, búsqueda, ficha completa con datos reales |
 
 Los fixtures de `test/fixtures/` son respuestas reales de PokéAPI recortadas.
 
@@ -148,8 +162,8 @@ inglés y lo indica en lugar de inventar una traducción.
 
 ```
 lib/
-├── app/        tema, router (GoRouter) y barra inferior
-├── core/       red (PokeApiClient), caché JSON, errores, utilidades
+├── app/        tema, router (GoRouter), barra inferior / riel lateral y medidas adaptables
+├── core/       red (PokeApiClient), caché JSON, sonidos, errores, utilidades
 ├── shared/     modelos, tabla de tipos, repositorios y componentes reutilizables
 └── features/   home · pokedex · pokemon_detail · settings · (team_builder, collection, mini_games)
 ```
@@ -164,5 +178,6 @@ decisiones en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
   [PokeAPI/sprites](https://github.com/PokeAPI/sprites).
 * Fuentes: Fredoka, Nunito y Press Start 2P (SIL Open Font License), incluidas
   en `assets/fonts/` y visibles en *Ajustes → Licencias*.
+* Efectos de sonido: originales, sintetizados con `tool/generate_sounds.py`.
 * Pokémon y sus nombres son marcas de sus respectivos propietarios. Revisa sus
   condiciones antes de distribuir la app públicamente.

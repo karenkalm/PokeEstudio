@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:pokestudio/app/app.dart';
 import 'package:pokestudio/app/router.dart';
+import 'package:pokestudio/core/audio/sound_service.dart';
 import 'package:pokestudio/core/providers.dart';
 import 'package:pokestudio/features/home/application/home_providers.dart';
+import 'package:pokestudio/features/home/presentation/home_screen.dart';
 import 'package:pokestudio/features/pokedex/presentation/pokedex_screen.dart';
 import 'package:pokestudio/features/pokemon_detail/presentation/pokemon_detail_screen.dart';
 import 'package:pokestudio/shared/application/pokedex_index_controller.dart';
@@ -19,11 +21,17 @@ void main() {
 
   setUpAll(() => index = loadRealIndex());
 
-  Future<void> pumpApp(WidgetTester tester) async {
+  /// Por defecto, un celular de 392 × 851 dp. [physicalSize] y
+  /// [pixelRatio] permiten simular tablets y computadoras.
+  Future<void> pumpApp(
+    WidgetTester tester, {
+    Size physicalSize = const Size(1080, 2340),
+    double pixelRatio = 2.75,
+  }) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final prefs = await SharedPreferences.getInstance();
-    tester.view.physicalSize = const Size(1080, 2340);
-    tester.view.devicePixelRatio = 2.75;
+    tester.view.physicalSize = physicalSize;
+    tester.view.devicePixelRatio = pixelRatio;
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
@@ -35,6 +43,7 @@ void main() {
           httpClientProvider.overrideWithValue(fixtureHttpClient()),
           pokedexIndexProvider.overrideWith(() => FakeIndexController(index)),
           todayProvider.overrideWithValue(DateTime(2026, 10, 17)),
+          soundServiceProvider.overrideWithValue(const SilentSoundService()),
         ],
         child: const PokeStudioApp(),
       ),
@@ -46,6 +55,10 @@ void main() {
     await pumpApp(tester);
     expect(find.text('¡Hola, entrenador!'), findsOneWidget);
     expect(find.text('Destacados de hoy'), findsOneWidget);
+
+    // "Vistos recientemente" queda debajo del carrusel: se desplaza hasta él.
+    final homeScroll = find.descendant(of: find.byType(HomeScreen), matching: find.byType(Scrollable)).first;
+    await tester.scrollUntilVisible(find.text('Aún no has abierto ninguna ficha'), 200, scrollable: homeScroll);
     expect(find.text('Aún no has abierto ninguna ficha'), findsOneWidget);
   });
 
@@ -74,6 +87,33 @@ void main() {
     await tester.tap(navItem('Inicio'));
     await settle(tester);
     expect(find.text('Destacados de hoy'), findsOneWidget);
+  });
+
+  testWidgets('en computadora usa un riel lateral y centra el contenido', (tester) async {
+    await pumpApp(tester, physicalSize: const Size(1440, 900), pixelRatio: 1);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.text('Destacados de hoy'), findsOneWidget);
+
+    // El contenido no se estira: el encabezado queda dentro de 1200 dp.
+    final header = tester.getRect(find.text('Destacados de hoy'));
+    expect(header.left, greaterThan(96));
+    expect(header.right, lessThan(1440));
+
+    Finder railItem(String label) =>
+        find.descendant(of: find.byType(NavigationRail), matching: find.text(label));
+    await tester.tap(railItem('Pokédex'));
+    await settle(tester);
+    expect(find.byType(PokedexScreen), findsOneWidget);
+    expect(find.text('Bulbasaur'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('en tablet vertical conserva la barra inferior sin desbordes', (tester) async {
+    await pumpApp(tester, physicalSize: const Size(768, 1024), pixelRatio: 1);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.text('Destacados de hoy'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('la búsqueda de la Pokédex filtra por nombre en español', (tester) async {

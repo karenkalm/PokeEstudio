@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 /// Paleta de PokéStudio. Los colores clásicos son acentos sobre una base
 /// crema; los pares de texto/fondo superan 4.5:1 (WCAG AA).

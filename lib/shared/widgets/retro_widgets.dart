@@ -1,9 +1,10 @@
 import 'package:flutter/services.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
+import '../../core/audio/sound_service.dart';
 import '../../core/utils/formatters.dart';
 
 /// Etiqueta pixel con el número de Pokédex: `#025`.
@@ -133,6 +134,7 @@ class RetroArrowButton extends StatelessWidget {
                 ? null
                 : () {
                     HapticFeedback.selectionClick();
+                    playSound(context, SoundEffect.arrow);
                     onPressed!();
                   },
             child: SizedBox.square(
@@ -185,12 +187,14 @@ class _ArrowPainter extends CustomPainter {
       oldDelegate.pointsLeft != pointsLeft || oldDelegate.color != color;
 }
 
-/// Envuelve un hijo táctil y lo encoge un poco al presionarlo.
+/// Envuelve un hijo táctil: lo encoge un poco al presionarlo y, con mouse,
+/// lo levanta ligeramente al pasar el puntero (y muestra la mano).
 class PressableScale extends StatefulWidget {
-  const PressableScale({super.key, required this.child, this.scale = 0.96});
+  const PressableScale({super.key, required this.child, this.scale = 0.96, this.hoverScale = 1.02});
 
   final Widget child;
   final double scale;
+  final double hoverScale;
 
   @override
   State<PressableScale> createState() => _PressableScaleState();
@@ -198,22 +202,37 @@ class PressableScale extends StatefulWidget {
 
 class _PressableScaleState extends State<PressableScale> {
   bool _pressed = false;
+  bool _hovered = false;
 
   void _set(bool value) {
     if (_pressed != value) setState(() => _pressed = value);
   }
 
+  void _hover(bool value) {
+    if (_hovered != value) setState(() => _hovered = value);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (_) => _set(true),
-      onPointerUp: (_) => _set(false),
-      onPointerCancel: (_) => _set(false),
-      child: AnimatedScale(
-        scale: _pressed ? widget.scale : 1,
-        duration: AppMotion.of(context, AppMotion.fast),
-        curve: Curves.easeOut,
-        child: widget.child,
+    final target = _pressed
+        ? widget.scale
+        : _hovered
+            ? widget.hoverScale
+            : 1.0;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => _hover(true),
+      onExit: (_) => _hover(false),
+      child: Listener(
+        onPointerDown: (_) => _set(true),
+        onPointerUp: (_) => _set(false),
+        onPointerCancel: (_) => _set(false),
+        child: AnimatedScale(
+          scale: target,
+          duration: AppMotion.of(context, AppMotion.fast),
+          curve: Curves.easeOut,
+          child: widget.child,
+        ),
       ),
     );
   }

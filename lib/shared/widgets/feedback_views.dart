@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
+import '../../core/audio/sound_service.dart';
 import '../../core/errors/app_failure.dart';
 
 /// Desenvuelve los `ProviderException` de Riverpod y devuelve el fallo
@@ -15,8 +16,9 @@ AppFailure failureFromError(Object error) {
   return toAppFailure(current);
 }
 
-/// Error comprensible con botón de reintento.
-class ErrorRetryView extends StatelessWidget {
+/// Error comprensible con botón de reintento. Al aparecer suena un aviso
+/// breve (solo la versión de pantalla completa, no la compacta).
+class ErrorRetryView extends StatefulWidget {
   const ErrorRetryView({super.key, required this.error, this.onRetry, this.compact = false});
 
   final Object error;
@@ -24,7 +26,25 @@ class ErrorRetryView extends StatelessWidget {
   final bool compact;
 
   @override
+  State<ErrorRetryView> createState() => _ErrorRetryViewState();
+}
+
+class _ErrorRetryViewState extends State<ErrorRetryView> {
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.compact) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) playSound(context, SoundEffect.error);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final error = widget.error;
+    final onRetry = widget.onRetry;
+    final compact = widget.compact;
     final failure = failureFromError(error);
     final textTheme = Theme.of(context).textTheme;
     final icon = switch (failure) {
@@ -58,7 +78,10 @@ class ErrorRetryView extends StatelessWidget {
             if (onRetry != null && failure.isRetryable) ...<Widget>[
               const SizedBox(height: AppSpacing.lg),
               FilledButton.icon(
-                onPressed: onRetry,
+                onPressed: () {
+                  playSound(context, SoundEffect.tap);
+                  onRetry();
+                },
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Reintentar'),
               ),
@@ -160,7 +183,13 @@ Future<bool> showConfirmDialog(
       title: Text(title),
       content: Text(message),
       actions: <Widget>[
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+        TextButton(
+          onPressed: () {
+            playSound(context, SoundEffect.back);
+            Navigator.of(context).pop(false);
+          },
+          child: const Text('Cancelar'),
+        ),
         FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(confirmLabel)),
       ],
     ),

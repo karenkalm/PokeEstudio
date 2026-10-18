@@ -1,6 +1,7 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../app/theme/app_colors.dart';
+import '../../core/audio/sound_service.dart';
 
 /// Campo de búsqueda con icono y botón para limpiar.
 class PokemonSearchBar extends StatelessWidget {
@@ -47,6 +48,7 @@ class PokemonSearchBar extends StatelessWidget {
                     tooltip: 'Limpiar búsqueda',
                     icon: const Icon(Icons.close_rounded),
                     onPressed: () {
+                      playSound(context, SoundEffect.back);
                       controller.clear();
                       onChanged?.call('');
                       onCleared?.call();

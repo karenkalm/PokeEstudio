@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../shared/models/pokemon_type.dart';
 import 'app_colors.dart';

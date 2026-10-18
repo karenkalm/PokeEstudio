@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../app/theme/type_palette.dart';
 import '../models/pokemon_type.dart';

@@ -18,6 +18,8 @@ class AppSettings {
     this.trainerName = '',
     this.reduceMotion = false,
     this.cardArtStyle = CardArtStyle.pixel,
+    this.soundEnabled = true,
+    this.soundVolume = 0.6,
   });
 
   /// Nombre para el saludo; vacío = "entrenador".
@@ -27,13 +29,27 @@ class AppSettings {
   final bool reduceMotion;
   final CardArtStyle cardArtStyle;
 
+  /// Efectos de sonido de la interfaz.
+  final bool soundEnabled;
+
+  /// Volumen de los efectos, de 0 a 1.
+  final double soundVolume;
+
   String get greetingName => trainerName.trim().isEmpty ? 'entrenador' : trainerName.trim();
 
-  AppSettings copyWith({String? trainerName, bool? reduceMotion, CardArtStyle? cardArtStyle}) {
+  AppSettings copyWith({
+    String? trainerName,
+    bool? reduceMotion,
+    CardArtStyle? cardArtStyle,
+    bool? soundEnabled,
+    double? soundVolume,
+  }) {
     return AppSettings(
       trainerName: trainerName ?? this.trainerName,
       reduceMotion: reduceMotion ?? this.reduceMotion,
       cardArtStyle: cardArtStyle ?? this.cardArtStyle,
+      soundEnabled: soundEnabled ?? this.soundEnabled,
+      soundVolume: soundVolume ?? this.soundVolume,
     );
   }
 }
@@ -42,6 +58,8 @@ class SettingsController extends Notifier<AppSettings> {
   static const String _nameKey = 'settings.trainerName';
   static const String _reduceMotionKey = 'settings.reduceMotion';
   static const String _cardStyleKey = 'settings.cardArtStyle';
+  static const String _soundEnabledKey = 'settings.soundEnabled';
+  static const String _soundVolumeKey = 'settings.soundVolume';
 
   /// Longitud máxima del nombre de entrenador.
   static const int maxNameLength = 20;
@@ -59,6 +77,8 @@ class SettingsController extends Notifier<AppSettings> {
         (style) => style.name == styleName,
         orElse: () => CardArtStyle.pixel,
       ),
+      soundEnabled: prefs.getBool(_soundEnabledKey) ?? true,
+      soundVolume: (prefs.getDouble(_soundVolumeKey) ?? 0.6).clamp(0.0, 1.0),
     );
   }
 
@@ -72,6 +92,17 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setReduceMotion(bool value) async {
     state = state.copyWith(reduceMotion: value);
     await _prefs.setBool(_reduceMotionKey, value);
+  }
+
+  Future<void> setSoundEnabled(bool value) async {
+    state = state.copyWith(soundEnabled: value);
+    await _prefs.setBool(_soundEnabledKey, value);
+  }
+
+  Future<void> setSoundVolume(double value) async {
+    final clean = value.clamp(0.0, 1.0);
+    state = state.copyWith(soundVolume: clean);
+    await _prefs.setDouble(_soundVolumeKey, clean);
   }
 
   Future<void> setCardArtStyle(CardArtStyle style) async {

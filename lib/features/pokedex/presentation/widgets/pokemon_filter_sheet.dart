@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/audio/sound_service.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/application/pokedex_index_controller.dart';
 import '../../../../shared/models/pokedex_entry.dart';
@@ -27,6 +28,13 @@ class _PokemonFilterSheetState extends ConsumerState<PokemonFilterSheet> {
   late PokedexFilter _draft = widget.initial;
 
   void _update(PokedexFilter next) => setState(() => _draft = next);
+
+  /// Igual que [_update], con sonido (chips e interruptores; los deslizadores
+  /// no suenan para no saturar).
+  void _toggle(PokedexFilter next) {
+    playSound(context, SoundEffect.toggle);
+    _update(next);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +73,7 @@ class _PokemonFilterSheetState extends ConsumerState<PokemonFilterSheet> {
                     ],
                     selected: <TypeMatchMode>{_draft.typeMatchMode},
                     showSelectedIcon: false,
-                    onSelectionChanged: (selection) => _update(_draft.copyWith(typeMatchMode: selection.first)),
+                    onSelectionChanged: (selection) => _toggle(_draft.copyWith(typeMatchMode: selection.first)),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
@@ -75,7 +83,7 @@ class _PokemonFilterSheetState extends ConsumerState<PokemonFilterSheet> {
                   const SizedBox(height: AppSpacing.sm),
                   _TypeSelectorRow(
                     selected: _draft.firstType,
-                    onSelected: (type) => _update(_draft.copyWith(firstType: type)),
+                    onSelected: (type) => _toggle(_draft.copyWith(firstType: type)),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
@@ -86,8 +94,8 @@ class _PokemonFilterSheetState extends ConsumerState<PokemonFilterSheet> {
                   _TypeSelectorRow(
                     selected: _draft.secondType,
                     monotypeSelected: _draft.monotypeOnly,
-                    onMonotype: () => _update(_draft.copyWith(secondType: null, monotypeOnly: true)),
-                    onSelected: (type) => _update(_draft.copyWith(secondType: type, monotypeOnly: false)),
+                    onMonotype: () => _toggle(_draft.copyWith(secondType: null, monotypeOnly: true)),
+                    onSelected: (type) => _toggle(_draft.copyWith(secondType: type, monotypeOnly: false)),
                   ),
 
                   // ── Generaciones ─────────────────────────────────────────
@@ -108,7 +116,7 @@ class _PokemonFilterSheetState extends ConsumerState<PokemonFilterSheet> {
                             } else {
                               next.remove(generation);
                             }
-                            _update(_draft.copyWith(generations: next));
+                            _toggle(_draft.copyWith(generations: next));
                           },
                         ),
                     ],
@@ -151,14 +159,14 @@ class _PokemonFilterSheetState extends ConsumerState<PokemonFilterSheet> {
                     title: const Text('Con formas alternativas'),
                     subtitle: const Text('Regionales, megaevoluciones, Gigamax…'),
                     value: _draft.onlyWithForms,
-                    onChanged: (v) => _update(_draft.copyWith(onlyWithForms: v)),
+                    onChanged: (v) => _toggle(_draft.copyWith(onlyWithForms: v)),
                   ),
                   if (shinyFilterUseful)
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Con sprite variocolor disponible'),
                       value: _draft.onlyWithShiny,
-                      onChanged: (v) => _update(_draft.copyWith(onlyWithShiny: v)),
+                      onChanged: (v) => _toggle(_draft.copyWith(onlyWithShiny: v)),
                     ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
@@ -171,7 +179,10 @@ class _PokemonFilterSheetState extends ConsumerState<PokemonFilterSheet> {
             _SheetFooter(
               count: count,
               canClear: _draft.hasActiveFilters,
-              onClear: () => _update(_draft.cleared()),
+              onClear: () {
+                playSound(context, SoundEffect.back);
+                _update(_draft.cleared());
+              },
               onApply: () => Navigator.of(context).pop(_draft),
             ),
           ],

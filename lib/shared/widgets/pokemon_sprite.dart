@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../app/theme/app_colors.dart';
 import 'app_network_image.dart';

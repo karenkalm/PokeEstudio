@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../../../app/router.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/audio/sound_service.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/pokedex_entry.dart';
 import '../../../../shared/widgets/pokemon_search_bar.dart';
@@ -45,6 +46,7 @@ class _HomeSearchFieldState extends ConsumerState<HomeSearchField> {
   void _onFocusChanged() => setState(() {});
 
   void _openPokedexWithQuery() {
+    playSound(context, SoundEffect.open);
     final text = _controller.text.trim();
     ref.read(pokedexQueryProvider.notifier).setQuery(text);
     _focusNode.unfocus();
@@ -52,6 +54,7 @@ class _HomeSearchFieldState extends ConsumerState<HomeSearchField> {
   }
 
   void _openEntry(PokedexEntry entry) {
+    playSound(context, SoundEffect.open);
     _focusNode.unfocus();
     context.push(AppRoutes.pokemon(entry.id));
   }

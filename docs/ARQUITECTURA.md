@@ -189,8 +189,8 @@ Hallazgos al generar el índice (datos del 17/10/2026):
 ```
 lib/
 ├── main.dart                 arranque: preferencias, caché, licencias, ProviderScope
-├── app/                      app.dart, router.dart, app_shell.dart, theme/
-├── core/                     network/, cache/, errors/, storage/, utils/
+├── app/                      app.dart, router.dart, app_shell.dart, layout/, theme/
+├── core/                     audio/, network/, cache/, errors/, storage/, utils/
 ├── shared/                   models/, domain/ (tabla de tipos), repositories/, widgets/
 └── features/
     ├── home/                 application/ (destacados, vistos) + presentation/
@@ -208,23 +208,45 @@ carpetas vacías.
 ## 8. Dependencias
 
 Verificadas el 17/10/2026 contra las etiquetas publicadas de cada paquete.
-Requieren **Flutter 3.47 o superior (Dart 3.13)**.
+Requieren **Flutter 3.38 o superior (Dart 3.10)**; se eligieron las series
+compatibles con esa versión para que el proyecto compile en equipos que aún no
+actualizan Flutter.
 
 | Paquete | Versión | Motivo |
 |---|---|---|
-| `material_ui` | ^1.7.0 | Material Design ahora vive en este paquete oficial (desacoplado del framework). `go_router` 18 y `cached_network_image` 4 ya lo usan; mezclarlo con `package:flutter/material.dart` duplicaría `Theme`. |
-| `flutter_riverpod` | ^3.4.3 | Gestión de estado (obligatoria). Sin generación de código. |
-| `go_router` | ^18.1.0 | Navegación con `StatefulShellRoute` (obligatoria). |
+| `flutter_riverpod` | ^3.3.2 | Gestión de estado (obligatoria). Sin generación de código. |
+| `go_router` | ^17.5.0 | Navegación con `StatefulShellRoute` (obligatoria). |
 | `http` | ^1.5.0 | Cliente HTTP único (oficial de Dart, liviano, `MockClient` para pruebas). |
-| `shared_preferences` | ^2.5.6 | Preferencias sencillas e historial de vistos. |
-| `path_provider` | ^2.1.6 | Carpeta para la caché en disco. |
-| `cached_network_image` | ^4.0.4 | Caché de sprites e ilustraciones. |
-| `flutter_cache_manager` | ^3.4.5 | Vaciar la caché de imágenes desde Ajustes. |
+| `shared_preferences` | ^2.5.4 | Preferencias sencillas e historial de vistos. |
+| `path_provider` | ^2.1.5 | Carpeta para la caché en disco (no se usa en web). |
+| `cached_network_image` | ^3.4.1 | Caché de sprites e ilustraciones en Android/iOS. En web se usa `Image.network`, porque su versión web perdía las texturas al cambiar de pestaña. |
+| `flutter_cache_manager` | ^3.4.1 | Vaciar la caché de imágenes desde Ajustes. |
+| `audioplayers` | ^6.7.1 | Efectos de sonido de la interfaz (modo de baja latencia). |
 | `flutter_lints` (dev) | ^6.0.0 | Reglas de análisis. |
 
+### Pantallas de todos los tamaños
+
+| Ancho | Navegación | Contenido |
+|---|---|---|
+| < 600 dp (celular) | Barra inferior | Una columna, márgenes de 20 dp |
+| 600–839 dp (tablet vertical) | Barra inferior | Carrusel con tarjetas de ~430 dp, ficha en una columna de 760 dp |
+| ≥ 840 dp (tablet horizontal, computadora) | Riel lateral con logo y Ajustes | Contenido centrado (máx. 1200 dp); ficha en dos columnas desde 900 dp |
+
+Las medidas viven en `lib/app/layout/responsive.dart`. Cada pantalla mide el
+espacio real con `LayoutBuilder` (no el ancho de la ventana), así el riel
+lateral no descuadra los márgenes.
+
+### Sonidos
+
+`lib/core/audio/sound_service.dart` define ocho efectos (`tap`, `select`,
+`open`, `back`, `arrow`, `toggle`, `success`, `error`), archivos WAV
+originales en `assets/sounds/`. Siempre acompañan a un cambio visual; nunca son
+la única señal. Se apagan o ajustan en *Ajustes → Sonido* y las pruebas usan
+`SilentSoundService`.
+
 **Fase 3** añadirá `drift`, `drift_flutter`, `build_runner` y `drift_dev`
-(SQLite) para colección, equipos y récords. **Fase 5** añadirá un reproductor
-de audio; ojo: los cries de PokéAPI son `.ogg`, que iOS no reproduce de forma
+(SQLite) para colección, equipos y récords. **Fase 5** reutilizará `audioplayers`
+para los gritos; ojo: los cries de PokéAPI son `.ogg`, que iOS no reproduce de forma
 nativa, así que esa fase incluye una estrategia de conversión o *fallback*.
 
 ## 9. Accesibilidad

@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
+import '../../../app/layout/responsive.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../core/audio/sound_service.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/application/pokedex_index_controller.dart';
 import '../../../shared/widgets/feedback_views.dart';
@@ -66,6 +68,7 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
   }
 
   void _scrollToTop() {
+    playSound(context, SoundEffect.arrow);
     final duration = AppMotion.of(context, AppMotion.slow);
     if (duration == Duration.zero) {
       _scroll.jumpTo(0);
@@ -75,6 +78,7 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
   }
 
   Future<void> _openFilters() async {
+    playSound(context, SoundEffect.open);
     final current = ref.read(pokedexFilterProvider);
     final result = await showModalBottomSheet<PokedexFilter>(
       context: context,
@@ -84,12 +88,14 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
     );
     if (result != null && mounted) {
       HapticFeedback.lightImpact();
+      playSound(context, SoundEffect.success);
       ref.read(pokedexFilterProvider.notifier).apply(result);
       if (_scroll.hasClients) _scroll.jumpTo(0);
     }
   }
 
   void _applySuggestion(SearchSuggestion suggestion) {
+    playSound(context, SoundEffect.open);
     final controller = ref.read(pokedexFilterProvider.notifier);
     switch (suggestion) {
       case TypeSuggestion(:final type):
@@ -128,119 +134,149 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
           : null,
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          controller: _scroll,
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          slivers: <Widget>[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.lg, AppSpacing.screen, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: LayoutBuilder(
+          builder: (context, constraints) => _buildBody(context, constraints.maxWidth, results, filter, textTheme),
+        ),
+      ),
+    );
+  }
+
+  /// Margen lateral: el normal en celular; en pantallas anchas, el que centra
+  /// el contenido en [Breakpoints.content].
+  static double _insetFor(double width) =>
+      centeredInset(width, maxWidth: Breakpoints.content - 2 * AppSpacing.screen);
+
+  Widget _buildBody(
+    BuildContext context,
+    double width,
+    AsyncValue<PokedexResults> results,
+    PokedexFilter filter,
+    TextTheme textTheme,
+  ) {
+    final inset = _insetFor(width);
+    return CustomScrollView(
+      controller: _scroll,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      slivers: <Widget>[
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Semantics(header: true, child: Text('Pokédex', style: textTheme.headlineMedium)),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.retroBrownDark,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'NACIONAL',
-                            style: AppTypography.pixelStyle(fontSize: 7, color: AppColors.pikachuYellow),
-                          ),
-                        ),
-                      ],
+                    Expanded(
+                      child: Semantics(header: true, child: Text('Pokédex', style: textTheme.headlineMedium)),
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    PokemonSearchBar(
-                      controller: _search,
-                      focusNode: _searchFocus,
-                      hintText: 'Nombre, número o forma (p. ej. "alola")',
-                      onChanged: _onQueryChanged,
-                      onSubmitted: (value) {
-                        _debounceTimer?.cancel();
-                        ref.read(pokedexQueryProvider.notifier).setQuery(value);
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Row(
-                      children: <Widget>[
-                        _FilterButton(activeCount: filter.activeCount, onPressed: _openFilters),
-                        const SizedBox(width: AppSpacing.sm),
-                        _SortButton(
-                          value: filter.sort,
-                          onSelected: (sort) => ref.read(pokedexFilterProvider.notifier).setSort(sort),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: results.maybeWhen(
-                            data: (data) => Text(
-                              data.items.length == data.totalInIndex
-                                  ? '${data.totalInIndex} Pokémon'
-                                  : '${data.items.length} de ${data.totalInIndex}',
-                              textAlign: TextAlign.right,
-                              style: textTheme.labelMedium?.copyWith(color: AppColors.inkMuted),
-                              semanticsLabel: '${data.items.length} resultados',
-                            ),
-                            orElse: () => const SizedBox.shrink(),
-                          ),
-                        ),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.retroBrownDark,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'NACIONAL',
+                        style: AppTypography.pixelStyle(fontSize: 7, color: AppColors.pikachuYellow),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            if (results.value?.suggestion case final suggestion?)
-              SliverToBoxAdapter(child: _SuggestionBanner(suggestion: suggestion, onApply: () => _applySuggestion(suggestion))),
-            if (filter.hasActiveFilters)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.md),
-                  child: ActiveFiltersBar(filter: filter),
+                const SizedBox(height: AppSpacing.md),
+                PokemonSearchBar(
+                  controller: _search,
+                  focusNode: _searchFocus,
+                  hintText: 'Nombre, número o forma (p. ej. "alola")',
+                  onChanged: _onQueryChanged,
+                  onSubmitted: (value) {
+                    _debounceTimer?.cancel();
+                    ref.read(pokedexQueryProvider.notifier).setQuery(value);
+                  },
                 ),
-              ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-            ...results.when(
-              loading: () => <Widget>[_loadingGrid(context)],
-              error: (error, _) => <Widget>[
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: ErrorRetryView(error: error, onRetry: () => ref.invalidate(pokedexIndexProvider)),
-                  ),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: <Widget>[
+                    _FilterButton(activeCount: filter.activeCount, onPressed: _openFilters),
+                    const SizedBox(width: AppSpacing.sm),
+                    _SortButton(
+                      value: filter.sort,
+                      onSelected: (sort) {
+                        playSound(context, SoundEffect.toggle);
+                        ref.read(pokedexFilterProvider.notifier).setSort(sort);
+                      },
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: results.maybeWhen(
+                        data: (data) => Text(
+                          data.items.length == data.totalInIndex
+                              ? '${data.totalInIndex} Pokémon'
+                              : '${data.items.length} de ${data.totalInIndex}',
+                          textAlign: TextAlign.right,
+                          style: textTheme.labelMedium?.copyWith(color: AppColors.inkMuted),
+                          semanticsLabel: '${data.items.length} resultados',
+                        ),
+                        orElse: () => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-              data: (data) => data.items.isEmpty
-                  ? <Widget>[
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: CuteEmptyState(
-                            icon: Icons.search_off_rounded,
-                            title: 'Sin coincidencias',
-                            message: filter.hasActiveFilters
-                                ? 'Ningún Pokémon cumple la búsqueda con los filtros activos.'
-                                : 'Revisa el nombre o prueba con el número de la Pokédex.',
-                            actionLabel: filter.hasActiveFilters ? 'Quitar filtros' : null,
-                            onAction: filter.hasActiveFilters
-                                ? () => ref.read(pokedexFilterProvider.notifier).clear()
-                                : null,
-                          ),
-                        ),
-                      ),
-                    ]
-                  : <Widget>[_resultsGrid(context, data)],
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 96)),
-          ],
+          ),
         ),
-      ),
+        if (results.value?.suggestion case final suggestion?)
+          SliverToBoxAdapter(
+            child: _SuggestionBanner(
+              suggestion: suggestion,
+              inset: inset,
+              onApply: () => _applySuggestion(suggestion),
+            ),
+          ),
+        if (filter.hasActiveFilters)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.md),
+              child: MaxWidth(child: ActiveFiltersBar(filter: filter)),
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+        ...results.when(
+          loading: () => <Widget>[_loadingGrid(context, inset)],
+          error: (error, _) => <Widget>[
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: ErrorRetryView(error: error, onRetry: () => ref.invalidate(pokedexIndexProvider)),
+              ),
+            ),
+          ],
+          data: (data) => data.items.isEmpty
+              ? <Widget>[
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: CuteEmptyState(
+                        icon: Icons.search_off_rounded,
+                        title: 'Sin coincidencias',
+                        message: filter.hasActiveFilters
+                            ? 'Ningún Pokémon cumple la búsqueda con los filtros activos.'
+                            : 'Revisa el nombre o prueba con el número de la Pokédex.',
+                        actionLabel: filter.hasActiveFilters ? 'Quitar filtros' : null,
+                        onAction: filter.hasActiveFilters
+                            ? () {
+                                playSound(context, SoundEffect.back);
+                                ref.read(pokedexFilterProvider.notifier).clear();
+                              }
+                            : null,
+                      ),
+                    ),
+                  ),
+                ]
+              : <Widget>[_resultsGrid(context, data, inset)],
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 96)),
+      ],
     );
   }
 
@@ -253,9 +289,9 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
     );
   }
 
-  Widget _resultsGrid(BuildContext context, PokedexResults data) {
+  Widget _resultsGrid(BuildContext context, PokedexResults data, double inset) {
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+      padding: EdgeInsets.symmetric(horizontal: inset),
       sliver: SliverGrid.builder(
         gridDelegate: _gridDelegate(context),
         itemCount: data.items.length,
@@ -267,9 +303,9 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
     );
   }
 
-  Widget _loadingGrid(BuildContext context) {
+  Widget _loadingGrid(BuildContext context, double inset) {
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+      padding: EdgeInsets.symmetric(horizontal: inset),
       sliver: SliverGrid.builder(
         gridDelegate: _gridDelegate(context),
         itemCount: 8,
@@ -337,9 +373,10 @@ class _SortButton extends StatelessWidget {
 }
 
 class _SuggestionBanner extends StatelessWidget {
-  const _SuggestionBanner({required this.suggestion, required this.onApply});
+  const _SuggestionBanner({required this.suggestion, required this.inset, required this.onApply});
 
   final SearchSuggestion suggestion;
+  final double inset;
   final VoidCallback onApply;
 
   @override
@@ -356,7 +393,7 @@ class _SuggestionBanner extends StatelessWidget {
         label = 'Ver toda la ${Generations.label(generation)}';
     }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md, AppSpacing.screen, 0),
+      padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, 0),
       child: Material(
         color: AppColors.creamYellow,
         shape: RoundedRectangleBorder(

@@ -1,11 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../app/router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../app/theme/type_palette.dart';
+import '../../core/audio/sound_service.dart';
 import '../../features/settings/application/settings_controller.dart';
 import '../models/pokedex_entry.dart';
 import 'pokemon_sprite.dart';
@@ -39,6 +40,7 @@ class PokemonCard extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final typeNames = entry.types.map((t) => t.spanishName).join(' y ');
     void open() {
+      playSound(context, SoundEffect.open);
       final callback = onTap;
       if (callback != null) {
         callback();

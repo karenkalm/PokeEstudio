@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
+import '../../../app/layout/responsive.dart';
 import '../../../app/router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../core/audio/sound_service.dart';
 import '../../../shared/application/pokedex_index_controller.dart';
 import '../../../shared/widgets/feedback_views.dart';
 import '../../../shared/widgets/pokestudio_logo.dart';
@@ -28,6 +30,8 @@ class HomeScreen extends ConsumerWidget {
     final name = ref.watch(settingsProvider.select((s) => s.greetingName));
     final index = ref.watch(pokedexIndexProvider);
     final recents = ref.watch(recentlyViewedProvider);
+    // Con el riel lateral (pantallas anchas) Ajustes ya está a la vista.
+    final showSettingsButton = MediaQuery.sizeOf(context).width < Breakpoints.navigationRail;
 
     return Scaffold(
       body: SafeArea(
@@ -39,23 +43,30 @@ class HomeScreen extends ConsumerWidget {
           ),
           data: (data) => CustomScrollView(
             slivers: <Widget>[
-              SliverToBoxAdapter(
+              _CenteredBox(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md, AppSpacing.sm, 0),
                   child: Row(
                     children: <Widget>[
-                      const Flexible(child: PokestudioLogo()),
-                      const Spacer(),
-                      IconButton(
-                        tooltip: 'Ajustes',
-                        icon: const Icon(Icons.settings_rounded, color: AppColors.retroBrown),
-                        onPressed: () => context.push(AppRoutes.settings),
+                      // Expanded (y no Flexible + Spacer, que se repartían el
+                      // espacio a la mitad y cortaban el nombre en celulares).
+                      const Expanded(
+                        child: Align(alignment: Alignment.centerLeft, child: PokestudioLogo()),
                       ),
+                      if (showSettingsButton)
+                        IconButton(
+                          tooltip: 'Ajustes',
+                          icon: const Icon(Icons.settings_rounded, color: AppColors.retroBrown),
+                          onPressed: () {
+                            playSound(context, SoundEffect.open);
+                            context.push(AppRoutes.settings);
+                          },
+                        ),
                     ],
                   ),
                 ),
               ),
-              SliverToBoxAdapter(
+              _CenteredBox(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.xl, AppSpacing.screen, 0),
                   child: Column(
@@ -68,24 +79,28 @@ class HomeScreen extends ConsumerWidget {
                         style: textTheme.bodyLarge?.copyWith(color: AppColors.inkMuted),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      HomeSearchField(entries: data.entries),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 640),
+                        child: HomeSearchField(entries: data.entries),
+                      ),
                       const SizedBox(height: AppSpacing.md),
                       _DexCounter(count: data.count),
                     ],
                   ),
                 ),
               ),
-              const SliverToBoxAdapter(
+              const _CenteredBox(
                 child: SectionHeader(title: 'Destacados de hoy', subtitle: 'Una selección nueva cada día'),
               ),
-              const SliverToBoxAdapter(child: FeaturedCarousel()),
-              SliverToBoxAdapter(
+              const _CenteredBox(child: FeaturedCarousel()),
+              _CenteredBox(
                 child: SectionHeader(
                   title: 'Vistos recientemente',
                   action: recents.isEmpty
                       ? null
                       : TextButton(
                           onPressed: () async {
+                            playSound(context, SoundEffect.tap);
                             final confirmed = await showConfirmDialog(
                               context,
                               title: '¿Borrar historial?',
@@ -94,37 +109,40 @@ class HomeScreen extends ConsumerWidget {
                             );
                             if (confirmed) {
                               await ref.read(recentlyViewedProvider.notifier).clear();
+                              if (context.mounted) playSound(context, SoundEffect.back);
                             }
                           },
                           child: const Text('Borrar'),
                         ),
                 ),
               ),
-              SliverToBoxAdapter(child: RecentStrip(index: data, recentIds: recents)),
-              const SliverToBoxAdapter(
+              _CenteredBox(child: RecentStrip(index: data, recentIds: recents)),
+              const _CenteredBox(
                 child: SectionHeader(title: 'Explorar por tipo', subtitle: 'Abre la Pokédex filtrada'),
               ),
-              SliverToBoxAdapter(
+              _CenteredBox(
                 child: ExploreByType(
                   onSelected: (type) {
+                    playSound(context, SoundEffect.open);
                     ref.read(pokedexFilterProvider.notifier).showOnlyType(type);
                     ref.read(pokedexQueryProvider.notifier).setQuery('');
                     context.go(AppRoutes.pokedex);
                   },
                 ),
               ),
-              const SliverToBoxAdapter(child: SectionHeader(title: 'Explorar por generación')),
-              SliverToBoxAdapter(
+              const _CenteredBox(child: SectionHeader(title: 'Explorar por generación')),
+              _CenteredBox(
                 child: ExploreByGeneration(
                   index: data,
                   onSelected: (generation) {
+                    playSound(context, SoundEffect.open);
                     ref.read(pokedexFilterProvider.notifier).showOnlyGeneration(generation);
                     ref.read(pokedexQueryProvider.notifier).setQuery('');
                     context.go(AppRoutes.pokedex);
                   },
                 ),
               ),
-              SliverToBoxAdapter(
+              _CenteredBox(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.xxl, AppSpacing.screen, AppSpacing.xxl),
                   child: Text(
@@ -140,6 +158,16 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Fila de contenido centrada y con ancho máximo (no se estira en monitores).
+class _CenteredBox extends StatelessWidget {
+  const _CenteredBox({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => SliverToBoxAdapter(child: MaxWidth(child: child));
 }
 
 class _DexCounter extends StatelessWidget {

@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/audio/sound_service.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../application/pokedex_providers.dart';
 import '../../domain/pokedex_filter.dart';
@@ -53,12 +54,21 @@ class ActiveFiltersBar extends ConsumerWidget {
               padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: InputChip(
                 label: Text(chip.label),
-                onDeleted: chip.onRemove,
+                onDeleted: () {
+                  playSound(context, SoundEffect.toggle);
+                  chip.onRemove();
+                },
                 deleteButtonTooltipMessage: 'Quitar filtro',
                 backgroundColor: AppColors.creamYellow,
               ),
             ),
-          TextButton(onPressed: controller.clear, child: const Text('Quitar todos')),
+          TextButton(
+            onPressed: () {
+              playSound(context, SoundEffect.back);
+              controller.clear();
+            },
+            child: const Text('Quitar todos'),
+          ),
         ],
       ),
     );

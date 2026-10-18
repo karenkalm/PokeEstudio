@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_ui/material_ui.dart';
 
 import '../../app/theme/app_spacing.dart';
 
@@ -8,9 +9,14 @@ import '../../app/theme/app_spacing.dart';
 /// futuro "modo ahorro de datos").
 final networkImagesEnabledProvider = Provider<bool>((ref) => true, name: 'networkImagesEnabledProvider');
 
-/// Imagen remota con caché en disco y alternativas para carga y error.
+/// Imagen remota con caché y alternativas para carga y error.
 ///
-/// Es el único lugar de la app que usa `CachedNetworkImage`.
+/// * **Android / iOS**: `CachedNetworkImage`, que guarda las imágenes en disco
+///   para verlas sin conexión.
+/// * **Web**: `Image.network` de Flutter. El navegador ya guarda las imágenes en
+///   su caché HTTP, y la implementación web de `CachedNetworkImage` creaba
+///   texturas que se perdían al cambiar de pestaña (cuadros negros y el aviso
+///   `WebGL: texImage2D: no image` en la consola).
 class AppNetworkImage extends ConsumerWidget {
   const AppNetworkImage({
     super.key,
@@ -46,6 +52,25 @@ class AppNetworkImage extends ConsumerWidget {
       image = fallback;
     } else if (!enabled) {
       image = placeholder;
+    } else if (kIsWeb) {
+      final fade = AppMotion.of(context, const Duration(milliseconds: 180));
+      image = Image.network(
+        imageUrl,
+        fit: fit,
+        width: width,
+        height: height,
+        filterQuality: filterQuality,
+        // Mantiene la imagen anterior mientras llega la nueva (sin parpadeos).
+        gaplessPlayback: true,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded) return child;
+          return AnimatedSwitcher(
+            duration: fade,
+            child: frame == null ? KeyedSubtree(key: const ValueKey<String>('cargando'), child: placeholder) : child,
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => fallback,
+      );
     } else {
       final fade = AppMotion.of(context, const Duration(milliseconds: 220));
       image = CachedNetworkImage(

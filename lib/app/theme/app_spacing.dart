@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 /// Espaciado en múltiplos de 4 y radios del sistema visual.
 abstract final class AppSpacing {
