@@ -16,8 +16,7 @@ Future<void> main() async {
   _registerFontLicenses();
 
   final preferences = await SharedPreferences.getInstance();
-  final supportDir = await getApplicationSupportDirectory();
-  final cache = JsonCache(directory: Directory('${supportDir.path}${Platform.pathSeparator}pokeapi_cache'));
+  final cache = await _createCache();
 
   runApp(
     ProviderScope(
@@ -32,6 +31,15 @@ Future<void> main() async {
       child: const PokeStudioApp(),
     ),
   );
+}
+
+/// En web no hay sistema de archivos: la caché de datos queda solo en memoria
+/// (el navegador ya guarda las imágenes y respuestas). En Android/iOS se
+/// guarda en disco para consultar fichas sin conexión.
+Future<JsonCache> _createCache() async {
+  if (kIsWeb) return JsonCache();
+  final supportDir = await getApplicationSupportDirectory();
+  return JsonCache(directory: Directory('${supportDir.path}${Platform.pathSeparator}pokeapi_cache'));
 }
 
 /// Las fuentes OFL empaquetadas aparecen en Ajustes → Licencias.
