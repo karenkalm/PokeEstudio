@@ -1,0 +1,56 @@
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Configurar Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Crear la carpeta web (si falta)
+        run: flutter create . --platforms=web --project-name pokestudio
+
+      - name: Descargar dependencias
+        run: flutter pub get
+
+      - name: Compilar la versión web
+        run: flutter build web --release --base-href "${{ steps.pages.outputs.base_path }}/"
+
+      - name: Subir el sitio
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar
+        id: deployment
+        uses: actions/deploy-pages@v5
